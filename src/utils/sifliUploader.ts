@@ -1,33 +1,38 @@
 import { BleClient, ConnectionPriority } from '@capacitor-community/bluetooth-le';
+import { WatchFaceConfig } from '../types/watchface';
 import { WATCH_SIZE } from './renderWatchFace';
 
 export const SIFLI_SERVICE = '00000000-0000-0000-6473-5f696c666973';
 export const SIFLI_CHAR = '00000000-0000-0200-6473-5f696c666973';
 
 const BLOCK_SIZE = 4096;
+const DIGIT_W = 46;
+const DIGIT_H = 67;
 
 interface WatchFileSpec {
   localName: string;
   remotePath: string;
-  isBgSlot?: 1 | 2 | 3 | 4;
+  isBgSlot?: 1;
   isThumb?: boolean;
+  digitValue?: string; // '0'..'9'
 }
 
+// Digit mapping confirmed from wf_clock33_time_num_01..10.bin sizes (02='1' smallest, 09='8' largest)
 const WF_CLOCK33_MANIFEST: WatchFileSpec[] = [
   { localName: 'wf_clock33_bg1.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_bg1.bin', isBgSlot: 1 },
   { localName: 'wf_clock33_tn.bin', remotePath: '/ex/installer_wf/wf_clock33_tn.bin', isThumb: true },
   { localName: 'wf_clock33_res.so', remotePath: '/ex/installer_wf/wf_clock33_res.so' },
   { localName: 'wf_clock33.so', remotePath: '/ex/installer_wf/wf_clock33.so' },
-  { localName: 'wf_clock33_time_num_01.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_01.bin' },
-  { localName: 'wf_clock33_time_num_02.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_02.bin' },
-  { localName: 'wf_clock33_time_num_03.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_03.bin' },
-  { localName: 'wf_clock33_time_num_04.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_04.bin' },
-  { localName: 'wf_clock33_time_num_05.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_05.bin' },
-  { localName: 'wf_clock33_time_num_06.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_06.bin' },
-  { localName: 'wf_clock33_time_num_07.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_07.bin' },
-  { localName: 'wf_clock33_time_num_08.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_08.bin' },
-  { localName: 'wf_clock33_time_num_09.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_09.bin' },
-  { localName: 'wf_clock33_time_num_10.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_10.bin' },
+  { localName: 'wf_clock33_time_num_01.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_01.bin', digitValue: '0' },
+  { localName: 'wf_clock33_time_num_02.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_02.bin', digitValue: '1' },
+  { localName: 'wf_clock33_time_num_03.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_03.bin', digitValue: '2' },
+  { localName: 'wf_clock33_time_num_04.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_04.bin', digitValue: '3' },
+  { localName: 'wf_clock33_time_num_05.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_05.bin', digitValue: '4' },
+  { localName: 'wf_clock33_time_num_06.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_06.bin', digitValue: '5' },
+  { localName: 'wf_clock33_time_num_07.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_07.bin', digitValue: '6' },
+  { localName: 'wf_clock33_time_num_08.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_08.bin', digitValue: '7' },
+  { localName: 'wf_clock33_time_num_09.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_09.bin', digitValue: '8' },
+  { localName: 'wf_clock33_time_num_10.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_10.bin', digitValue: '9' },
   { localName: 'wf_clock33.dsc', remotePath: '/ex/installer_wf/wf_clock33.dsc' }
 ];
 
@@ -87,6 +92,74 @@ export function encodeCanvasToLvglRgb565Bin(canvas: HTMLCanvasElement): Uint8Arr
   return appendSifliCrc32(raw);
 }
 
+/**
+ * Encodes a transparent HTMLCanvasElement into LVGL TRUE_COLOR_ALPHA (cf=5: RGB565 + Alpha byte)
+ * so the watch's real ticking digits render cleanly over any custom background photo.
+ */
+function encodeCanvasToLvglRgb565AlphaBin(canvas: HTMLCanvasElement): Uint8Array {
+  const w = canvas.width;
+  const h = canvas.height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('No se pudo leer el canvas de dígito');
+
+  const imgData = ctx.getImageData(0, 0, w, h).data;
+  const raw = new Uint8Array(4 + w * h * 3);
+
+  const cf = 5; // LV_IMG_CF_TRUE_COLOR_ALPHA (RGB565 + 8-bit alpha)
+  const headerVal = (cf & 0x1f) | ((w & 0x7ff) << 10) | ((h & 0x7ff) << 21);
+  raw[0] = headerVal & 0xff;
+  raw[1] = (headerVal >>> 8) & 0xff;
+  raw[2] = (headerVal >>> 16) & 0xff;
+  raw[3] = (headerVal >>> 24) & 0xff;
+
+  let dst = 4;
+  for (let i = 0; i < imgData.length; i += 4) {
+    const r = imgData[i];
+    const g = imgData[i + 1];
+    const b = imgData[i + 2];
+    const a = imgData[i + 3];
+    const rgb565 = ((r & 0xf8) << 8) | ((g & 0xfc) << 3) | (b >>> 3);
+    raw[dst++] = rgb565 & 0xff;
+    raw[dst++] = (rgb565 >>> 8) & 0xff;
+    raw[dst++] = a;
+  }
+
+  return appendSifliCrc32(raw);
+}
+
+/**
+ * Renders one live watch digit ('0'..'9') at 46x67 with transparent background using
+ * the user's chosen clockFont, clockColor, and subtle outline/glow for readability.
+ */
+function renderCustomDigitBin(digit: string, config: WatchFaceConfig): Uint8Array {
+  const c = document.createElement('canvas');
+  c.width = DIGIT_W;
+  c.height = DIGIT_H;
+  const ctx = c.getContext('2d');
+  if (!ctx) throw new Error('Error creando dígito');
+
+  ctx.clearRect(0, 0, DIGIT_W, DIGIT_H);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `800 50px "${config.clockFont}", sans-serif`;
+
+  // Subtle dark shadow/outline so white or light digits remain crisp over bright photos
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.72)';
+  ctx.strokeText(digit, DIGIT_W / 2, DIGIT_H / 2 + 2);
+
+  if (config.clockGlow) {
+    ctx.shadowColor = config.accentColor;
+    ctx.shadowBlur = 8;
+  }
+
+  ctx.fillStyle = config.clockColor || '#ffffff';
+  ctx.fillText(digit, DIGIT_W / 2, DIGIT_H / 2 + 2);
+
+  return encodeCanvasToLvglRgb565AlphaBin(c);
+}
+
 function u16le(v: number): [number, number] {
   return [v & 0xff, (v >>> 8) & 0xff];
 }
@@ -105,22 +178,23 @@ export interface UploadProgress {
 }
 
 /**
- * Installs a complete, valid wf_clock33 watchface package onto the HK5 HERO over SiFli BLE,
- * replacing the selected background slot (bg1..bg4) with the user's custom 466x466 design.
+ * Installs a complete, zero-flicker custom watchface onto the HK5 HERO over SiFli BLE:
+ * - Clean 466x466 custom background (no frozen hands)
+ * - Custom 144x144 selector thumbnail
+ * - All 10 live ticking digits ('0'..'9') rendered in the user's chosen font & color!
  */
 export async function uploadWatchFaceBgToHk5(
   canvas: HTMLCanvasElement,
-  slot: 1 | 2 | 3 | 4,
+  config: WatchFaceConfig,
   onProgress: (p: UploadProgress) => void
 ): Promise<string> {
   if (canvas.width !== WATCH_SIZE || canvas.height !== WATCH_SIZE) {
     throw new Error(`La imagen debe ser ${WATCH_SIZE}x${WATCH_SIZE}`);
   }
 
-  onProgress({ stage: 'Empaquetando esfera 466×466 + miniatura...', percent: 2 });
+  onProgress({ stage: 'Generando fondo, miniatura y dígitos en vivo...', percent: 2 });
   const customBgBytes = encodeCanvasToLvglRgb565Bin(canvas);
 
-  // Create 144x144 circular thumbnail so the custom design appears in the watch's face selector
   const thumbCanvas = document.createElement('canvas');
   thumbCanvas.width = 144;
   thumbCanvas.height = 144;
@@ -139,6 +213,8 @@ export async function uploadWatchFaceBgToHk5(
       bytes = customBgBytes;
     } else if (spec.isThumb) {
       bytes = customThumbBytes;
+    } else if (spec.digitValue !== undefined) {
+      bytes = renderCustomDigitBin(spec.digitValue, config);
     } else {
       const resp = await fetch(`/wf_template/${spec.localName}`);
       if (!resp.ok) {
@@ -177,14 +253,13 @@ export async function uploadWatchFaceBgToHk5(
     throw lastErr instanceof Error ? lastErr : new Error('No se pudo conectar al HK5 HERO');
   }
 
-  // Request high-speed BLE connection interval (7.5-15ms) like Wearfit Pro
   try {
     await BleClient.requestConnectionPriority(
       device.deviceId,
       ConnectionPriority.CONNECTION_PRIORITY_HIGH
     );
   } catch {
-    // Ignore on platforms where not supported
+    // ignore
   }
 
   let maxAttPayload = 244;
@@ -202,7 +277,7 @@ export async function uploadWatchFaceBgToHk5(
   let pendingResolver: ((cmd: number, raw: Uint8Array) => void) | null = null;
   let lastRxHex = 'none';
 
-  const waitForAck = (expectedCmd: number, timeoutMs = 8000): Promise<Uint8Array> => {
+  const waitForAck = (expectedCmd: number, timeoutMs = 10000): Promise<Uint8Array> => {
     return new Promise((resolve, reject) => {
       const timer = window.setTimeout(() => {
         pendingResolver = null;
@@ -230,7 +305,6 @@ export async function uploadWatchFaceBgToHk5(
     });
   };
 
-  // Pure writeWithoutResponse (exact match to Wearfit Pro btsnoop capture)
   const sendFramedMessage = async (inner: Uint8Array) => {
     if (inner.length + 4 <= maxAttPayload) {
       const pkt = new Uint8Array(4 + inner.length);
@@ -301,7 +375,7 @@ export async function uploadWatchFaceBgToHk5(
 
     let globalSent = 0;
 
-    // 2. Stream all 18 files of the watchface package
+    // 2. Stream all 15 files (clean background + thumbnail + 10 live custom digits + .so/.dsc)
     for (let idx = 0; idx < packageFiles.length; idx++) {
       const { remotePath, bytes } = packageFiles[idx];
       const pathBytes = new TextEncoder().encode(remotePath);
@@ -334,7 +408,6 @@ export async function uploadWatchFaceBgToHk5(
         inner.set(u32le(seq), 4);
         inner.set(slice, 8);
 
-        // Send 4096-byte block and wait for CMD 0x0005 ACK
         try {
           const ackData = waitForAck(0x0005, 10000);
           await sendFramedMessage(inner);
@@ -366,8 +439,8 @@ export async function uploadWatchFaceBgToHk5(
     await sendFramedMessage(new Uint8Array([0x08, 0x00, 0x00, 0x00]));
     await ackSessionEnd;
 
-    onProgress({ stage: '¡Esfera instalada y activada!', percent: 100 });
-    return `¡Listo! Esfera instalada en Fondo ${slot} del HK5 HERO.`;
+    onProgress({ stage: '¡Esfera instalada y en marcha!', percent: 100 });
+    return '¡Listo! Tu esfera con hora real en vivo ya está activa en el HK5 HERO.';
   } finally {
     try {
       await BleClient.stopNotifications(device.deviceId, SIFLI_SERVICE, SIFLI_CHAR);

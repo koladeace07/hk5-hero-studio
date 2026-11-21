@@ -10,7 +10,7 @@ interface WatchPreviewProps {
   onToggleBackgroundOnly: () => void;
   onSave: (thumbnail: string) => void;
   onExportPng: (circular: boolean) => void;
-  onSendToWatch: (slot: 1 | 2 | 3 | 4) => void;
+  onSendToWatch: () => void;
   uploadProgress: UploadProgress | null;
   uploadError: string | null;
 }
@@ -29,7 +29,6 @@ export const WatchPreview: React.FC<WatchPreviewProps> = ({
   const imageRef = useRef<HTMLImageElement | null>(null);
   const [imageLoadedKey, setImageLoadedKey] = useState(0);
   const [now, setNow] = useState(() => new Date());
-  const [watchSlot, setWatchSlot] = useState<1 | 2 | 3 | 4>(1);
 
   // Tick every second for live preview
   useEffect(() => {
@@ -174,27 +173,18 @@ export const WatchPreview: React.FC<WatchPreviewProps> = ({
       {/* Direct Bluetooth Watchface Uploader for HK5 HERO */}
       <div className="direct-upload-box">
         <div className="direct-upload-row">
-          <select
-            className="slot-select"
-            value={watchSlot}
-            onChange={(e) => setWatchSlot(Number(e.target.value) as 1 | 2 | 3 | 4)}
-            disabled={Boolean(uploadProgress)}
-            aria-label="Ranura de fondo en el reloj"
-          >
-            <option value={1}>Fondo 1 (HK5)</option>
-            <option value={2}>Fondo 2 (HK5)</option>
-            <option value={3}>Fondo 3 (HK5)</option>
-            <option value={4}>Fondo 4 (HK5)</option>
-          </select>
-
           <button
             type="button"
             className="btn btn-primary"
             disabled={Boolean(uploadProgress)}
-            onClick={() => onSendToWatch(watchSlot)}
+            onClick={onSendToWatch}
           >
             <Send size={16} />
-            <span>{uploadProgress ? `${uploadProgress.percent}%` : 'Enviar al HK5 HERO'}</span>
+            <span>
+              {uploadProgress
+                ? `Enviando... ${uploadProgress.percent}%`
+                : 'Instalar esfera en HK5 HERO'}
+            </span>
           </button>
         </div>
 

@@ -118,10 +118,10 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleSendToWatch = async (slot: 1 | 2 | 3 | 4) => {
+  const handleSendToWatch = async () => {
     try {
       setUploadError(null);
-      setUploadProgress({ stage: 'Preparando imagen 466×466...', percent: 1 });
+      setUploadProgress({ stage: 'Preparando fondo limpio 466×466...', percent: 1 });
       const offscreen = document.createElement('canvas');
       offscreen.width = WATCH_SIZE;
       offscreen.height = WATCH_SIZE;
@@ -138,14 +138,16 @@ export const App: React.FC = () => {
         });
       }
 
+      // Always send clean background (backgroundOnly: true) so frozen hands/widgets are never baked in;
+      // the watch renders its own real ticking clock using the custom digits we generate!
       renderWatchFace(ctx, config, {
-        backgroundOnly,
+        backgroundOnly: true,
         circularMask: false,
         loadedImage,
         now: new Date()
       });
 
-      const msg = await uploadWatchFaceBgToHk5(offscreen, slot, (p) => setUploadProgress(p));
+      const msg = await uploadWatchFaceBgToHk5(offscreen, config, (p) => setUploadProgress(p));
       showToast(msg);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error al enviar al HK5 HERO';

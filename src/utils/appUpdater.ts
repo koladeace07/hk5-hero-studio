@@ -1,4 +1,4 @@
-export const APP_VERSION = '1.1.0';
+export const APP_VERSION = '1.2.0';
 export const GITHUB_REPO = 'koladeace07/hk5-hero-studio';
 export const LATEST_APK_URL = `https://github.com/${GITHUB_REPO}/releases/latest/download/hk5-hero-studio.apk`;
 
