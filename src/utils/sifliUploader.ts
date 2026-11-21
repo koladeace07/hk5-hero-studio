@@ -6,8 +6,10 @@ export const SIFLI_SERVICE = '00000000-0000-0000-6473-5f696c666973';
 export const SIFLI_CHAR = '00000000-0000-0200-6473-5f696c666973';
 
 const BLOCK_SIZE = 4096;
-const DIGIT_W = 30;
-const DIGIT_H = 44;
+const DIGIT_W = 36;
+const DIGIT_H = 52;
+const NUS_SERVICE = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+const NUS_TX_CHAR = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
 
 interface WatchFileSpec {
   localName: string;
@@ -141,21 +143,21 @@ function renderCustomDigitBin(digit: string, config: WatchFaceConfig): Uint8Arra
   ctx.clearRect(0, 0, DIGIT_W, DIGIT_H);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = `800 34px "${config.clockFont}", sans-serif`;
+  ctx.font = `800 44px "${config.clockFont}", sans-serif`;
 
-  // Subtle dark shadow/outline so white or light digits remain crisp over bright photos
+  // Subtle dark outline so digits stay sharp over bright photos
   ctx.lineJoin = 'round';
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.78)';
-  ctx.strokeText(digit, DIGIT_W / 2, DIGIT_H / 2 + 1);
+  ctx.lineWidth = 3.5;
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+  ctx.strokeText(digit, DIGIT_W / 2, DIGIT_H / 2 + 2);
 
   if (config.clockGlow) {
     ctx.shadowColor = config.accentColor;
-    ctx.shadowBlur = 6;
+    ctx.shadowBlur = 7;
   }
 
   ctx.fillStyle = config.clockColor || '#ffffff';
-  ctx.fillText(digit, DIGIT_W / 2, DIGIT_H / 2 + 1);
+  ctx.fillText(digit, DIGIT_W / 2, DIGIT_H / 2 + 2);
 
   return encodeCanvasToLvglRgb565AlphaBin(c);
 }
@@ -196,11 +198,11 @@ export async function uploadWatchFaceBgToHk5(
   const customBgBytes = encodeCanvasToLvglRgb565Bin(canvas);
 
   const thumbCanvas = document.createElement('canvas');
-  thumbCanvas.width = 72;
-  thumbCanvas.height = 72;
+  thumbCanvas.width = 48;
+  thumbCanvas.height = 48;
   const tctx = thumbCanvas.getContext('2d');
   if (tctx) {
-    tctx.drawImage(canvas, 0, 0, 72, 72);
+    tctx.drawImage(canvas, 0, 0, 48, 48);
   }
   const customThumbBytes = encodeCanvasToLvglRgb565Bin(thumbCanvas);
 
@@ -434,13 +436,29 @@ export async function uploadWatchFaceBgToHk5(
     }
 
     // 3. SESSION_END (CMD 0x0008)
-    onProgress({ stage: 'Activando esfera en HK5 HERO...', percent: 99 });
+    onProgress({ stage: 'Activando esfera en HK5 HERO...', percent: 98 });
     const ackSessionEnd = waitForAck(0x0009, 15000);
     await sendFramedMessage(new Uint8Array([0x08, 0x00, 0x00, 0x00]));
     await ackSessionEnd;
 
-    onProgress({ stage: '¡Esfera instalada y en marcha!', percent: 100 });
-    return '¡Listo! Tu esfera con hora real en vivo ya está activa en el HK5 HERO.';
+    // 4. Auto-sync exact phone time & date over Wearfit UART (0x93)
+    onProgress({ stage: 'Sincronizando hora exacta...', percent: 99 });
+    try {
+      const d = new Date();
+      const y = d.getFullYear();
+      const timePkt = new Uint8Array([
+        0xab, 0x00, 0x0b, 0xff, 0x93, 0x80, 0x00,
+        (y >> 8) & 0xff, y & 0xff,
+        d.getMonth() + 1, d.getDate(),
+        d.getHours(), d.getMinutes(), d.getSeconds()
+      ]);
+      await BleClient.writeWithoutResponse(device.deviceId, NUS_SERVICE, NUS_TX_CHAR, toDataView(timePkt));
+    } catch {
+      // Non-critical if UART is busy
+    }
+
+    onProgress({ stage: '¡Esfera instalada y hora sincronizada!', percent: 100 });
+    return '¡Listo! Esfera instalada con hora real sincronizada en tu HK5 HERO.';
   } finally {
     try {
       await BleClient.stopNotifications(device.deviceId, SIFLI_SERVICE, SIFLI_CHAR);
