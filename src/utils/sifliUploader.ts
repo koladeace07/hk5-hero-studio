@@ -6,8 +6,8 @@ export const SIFLI_SERVICE = '00000000-0000-0000-6473-5f696c666973';
 export const SIFLI_CHAR = '00000000-0000-0200-6473-5f696c666973';
 
 const BLOCK_SIZE = 4096;
-const DIGIT_W = 46;
-const DIGIT_H = 67;
+const DIGIT_W = 30;
+const DIGIT_H = 44;
 
 interface WatchFileSpec {
   localName: string;
@@ -141,21 +141,21 @@ function renderCustomDigitBin(digit: string, config: WatchFaceConfig): Uint8Arra
   ctx.clearRect(0, 0, DIGIT_W, DIGIT_H);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = `800 50px "${config.clockFont}", sans-serif`;
+  ctx.font = `800 34px "${config.clockFont}", sans-serif`;
 
   // Subtle dark shadow/outline so white or light digits remain crisp over bright photos
   ctx.lineJoin = 'round';
-  ctx.lineWidth = 4;
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.72)';
-  ctx.strokeText(digit, DIGIT_W / 2, DIGIT_H / 2 + 2);
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.78)';
+  ctx.strokeText(digit, DIGIT_W / 2, DIGIT_H / 2 + 1);
 
   if (config.clockGlow) {
     ctx.shadowColor = config.accentColor;
-    ctx.shadowBlur = 8;
+    ctx.shadowBlur = 6;
   }
 
   ctx.fillStyle = config.clockColor || '#ffffff';
-  ctx.fillText(digit, DIGIT_W / 2, DIGIT_H / 2 + 2);
+  ctx.fillText(digit, DIGIT_W / 2, DIGIT_H / 2 + 1);
 
   return encodeCanvasToLvglRgb565AlphaBin(c);
 }
@@ -196,11 +196,11 @@ export async function uploadWatchFaceBgToHk5(
   const customBgBytes = encodeCanvasToLvglRgb565Bin(canvas);
 
   const thumbCanvas = document.createElement('canvas');
-  thumbCanvas.width = 144;
-  thumbCanvas.height = 144;
+  thumbCanvas.width = 72;
+  thumbCanvas.height = 72;
   const tctx = thumbCanvas.getContext('2d');
   if (tctx) {
-    tctx.drawImage(canvas, 0, 0, 144, 144);
+    tctx.drawImage(canvas, 0, 0, 72, 72);
   }
   const customThumbBytes = encodeCanvasToLvglRgb565Bin(thumbCanvas);
 
