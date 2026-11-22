@@ -183,7 +183,47 @@ function createTransparent2x2Bin(): Uint8Array {
 }
 
 /**
- * Renders a dead-centered custom analog hand (hour, minute, or second) in LVGL TRUE_COLOR_ALPHA (cf=5).
+ * Encodes a hand bitmap using LVGL TRUE_COLOR_CHROMA_KEYED (cf=6, 2 bytes/px, 0x07E0 = transparent)
+ * so dead-centered full-height hands (cx=32/21) fit comfortably under the watch's 500 KB flash quota!
+ */
+function encodeCanvasToLvglChromaKeyBin(canvas: HTMLCanvasElement): Uint8Array {
+  const w = canvas.width;
+  const h = canvas.height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('No se pudo leer el canvas');
+
+  const imgData = ctx.getImageData(0, 0, w, h).data;
+  const raw = new Uint8Array(4 + w * h * 2);
+
+  const cf = 6; // LV_IMG_CF_TRUE_COLOR_CHROMA_KEYED (RGB565, 0x07E0 = transparent)
+  const headerVal = (cf & 0x1f) | ((w & 0x7ff) << 10) | ((h & 0x7ff) << 21);
+  raw[0] = headerVal & 0xff;
+  raw[1] = (headerVal >>> 8) & 0xff;
+  raw[2] = (headerVal >>> 16) & 0xff;
+  raw[3] = (headerVal >>> 24) & 0xff;
+
+  let dst = 4;
+  for (let i = 0; i < imgData.length; i += 4) {
+    const a = imgData[i + 3];
+    let rgb565: number;
+    if (a < 128) {
+      rgb565 = 0x07e0; // LV_COLOR_CHROMA_KEY (pure green = transparent)
+    } else {
+      const r = imgData[i];
+      const g = imgData[i + 1];
+      const b = imgData[i + 2];
+      rgb565 = ((r & 0xf8) << 8) | ((g & 0xfc) << 3) | (b >>> 3);
+      if (rgb565 === 0x07e0) rgb565 = 0x07c0; // avoid accidental transparency
+    }
+    raw[dst++] = rgb565 & 0xff;
+    raw[dst++] = (rgb565 >>> 8) & 0xff;
+  }
+
+  return appendSifliCrc32(raw);
+}
+
+/**
+ * Renders a dead-centered custom analog hand (hour, minute, or second) in LVGL CHROMA_KEYED (cf=6).
  * wf_clock181.so aligns the left edge at (centerX - 32) for h/m and (centerX - 21) for s,
  * so drawing the hand centerline at cx=32 (h/m) and cx=21 (s) centers it perfectly on the watch pin!
  */
@@ -193,10 +233,10 @@ function renderCustomHandBin(
 ): Uint8Array {
   const dims =
     role === 'hour'
-      ? { w: 37, h: 160, cx: 32, bodyW: 4.5, tipY: 8, tailY: 158 }
+      ? { w: 40, h: 162, cx: 32, bodyW: 6, tipY: 8, tailY: 160 }
       : role === 'minute'
-        ? { w: 36, h: 204, cx: 32, bodyW: 4, tipY: 6, tailY: 202 }
-        : { w: 23, h: 234, cx: 21, bodyW: 2, tipY: 10, tailY: 232 };
+        ? { w: 38, h: 206, cx: 32, bodyW: 5, tipY: 6, tailY: 204 }
+        : { w: 24, h: 236, cx: 21, bodyW: 2, tipY: 10, tailY: 234 };
 
   const c = document.createElement('canvas');
   c.width = dims.w;
@@ -210,7 +250,7 @@ function renderCustomHandBin(
 
   if (role === 'second') {
     ctx.strokeStyle = config.accentColor || '#38bdf8';
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 3;
     ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.moveTo(cx, dims.tipY);
@@ -219,9 +259,9 @@ function renderCustomHandBin(
 
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.arc(cx, dims.tipY + 6, 2, 0, Math.PI * 2);
+    ctx.arc(cx, dims.tipY + 6, 2.2, 0, Math.PI * 2);
     ctx.fill();
-    return encodeCanvasToLvglRgb565AlphaBin(c);
+    return encodeCanvasToLvglChromaKeyBin(c);
   }
 
   const mainColor = config.clockColor || '#ffffff';
@@ -245,11 +285,7 @@ function renderCustomHandBin(
     ctx.lineTo(cx, dims.h * 0.74);
     ctx.stroke();
   } else {
-    const strokeW = style === 'minimal' ? 4 : dims.bodyW * 1.7;
-    if (style === 'neon') {
-      ctx.shadowColor = accent;
-      ctx.shadowBlur = 4;
-    }
+    const strokeW = style === 'minimal' ? 4 : dims.bodyW * 1.5;
     ctx.strokeStyle = mainColor;
     ctx.lineWidth = strokeW;
     ctx.lineCap = 'round';
@@ -259,7 +295,7 @@ function renderCustomHandBin(
     ctx.stroke();
   }
 
-  return encodeCanvasToLvglRgb565AlphaBin(c);
+  return encodeCanvasToLvglChromaKeyBin(c);
 }
 
 function u16le(v: number): [number, number] {
