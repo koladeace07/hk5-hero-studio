@@ -185,7 +185,7 @@ export const WatchPreview: React.FC<WatchPreviewProps> = ({
             <span>
               {uploadProgress
                 ? `Instalando... ${uploadProgress.percent}%`
-                : `Instalar ${activeEngine === 'analog_181' ? 'Analógica' : 'Digital'} en HK5 HERO`}
+                : `Instalar ${activeEngine === 'analog_181' ? 'Analógica Pro' : activeEngine === 'digital_181' ? 'Digital Pro' : 'Digital Arriba'} en HK5`}
             </span>
           </button>
         </div>

@@ -5,7 +5,7 @@ import { WATCH_SIZE } from './renderWatchFace';
 export const SIFLI_SERVICE = '00000000-0000-0000-6473-5f696c666973';
 export const SIFLI_CHAR = '00000000-0000-0200-6473-5f696c666973';
 
-export type WatchEngineTemplate = 'analog_181' | 'digital_33';
+export type WatchEngineTemplate = 'analog_181' | 'digital_181' | 'digital_33';
 
 const BLOCK_SIZE = 4096;
 const DIGIT_W = 36;
@@ -172,8 +172,20 @@ function renderCustomDigitBin(digit: string, config: WatchFaceConfig): Uint8Arra
 }
 
 /**
- * Renders a sleek custom analog watch hand (hour, minute, or second) in LVGL TRUE_COLOR_ALPHA (cf=5)
- * matching wf_clock181's exact vertical heights (187, 233, 316) so the pivot aligns perfectly.
+ * Tiny 2x2 fully transparent LVGL TRUE_COLOR_ALPHA image (20 bytes) used in 'digital_181'
+ * to hide the analog hands so all live widgets (weather, HR, battery, steps, digital time) shine cleanly.
+ */
+function createTransparent2x2Bin(): Uint8Array {
+  const c = document.createElement('canvas');
+  c.width = 2;
+  c.height = 2;
+  return encodeCanvasToLvglRgb565AlphaBin(c);
+}
+
+/**
+ * Renders a dead-centered custom analog hand (hour, minute, or second) in LVGL TRUE_COLOR_ALPHA (cf=5).
+ * wf_clock181.so aligns the left edge at (centerX - 32) for h/m and (centerX - 21) for s,
+ * so drawing the hand centerline at cx=32 (h/m) and cx=21 (s) centers it perfectly on the watch pin!
  */
 function renderCustomHandBin(
   role: 'hour' | 'minute' | 'second',
@@ -181,10 +193,10 @@ function renderCustomHandBin(
 ): Uint8Array {
   const dims =
     role === 'hour'
-      ? { w: 24, h: 187, bodyW: 9, tipY: 10, tailY: 180 }
+      ? { w: 37, h: 160, cx: 32, bodyW: 4.5, tipY: 8, tailY: 158 }
       : role === 'minute'
-        ? { w: 20, h: 233, bodyW: 7, tipY: 8, tailY: 224 }
-        : { w: 12, h: 316, bodyW: 3, tipY: 14, tailY: 306 };
+        ? { w: 36, h: 204, cx: 32, bodyW: 4, tipY: 6, tailY: 202 }
+        : { w: 23, h: 234, cx: 21, bodyW: 2, tipY: 10, tailY: 232 };
 
   const c = document.createElement('canvas');
   c.width = dims.w;
@@ -193,53 +205,50 @@ function renderCustomHandBin(
   if (!ctx) throw new Error('Error creando manecilla');
 
   ctx.clearRect(0, 0, dims.w, dims.h);
-  const cx = dims.w / 2;
+  const cx = dims.cx;
   const style = config.handStyle || 'sword';
 
   if (role === 'second') {
     ctx.strokeStyle = config.accentColor || '#38bdf8';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 2.5;
     ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.moveTo(cx, dims.tipY);
     ctx.lineTo(cx, dims.tailY);
     ctx.stroke();
 
-    // Small glowing tip
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.arc(cx, dims.tipY + 8, 2.5, 0, Math.PI * 2);
+    ctx.arc(cx, dims.tipY + 6, 2, 0, Math.PI * 2);
     ctx.fill();
     return encodeCanvasToLvglRgb565AlphaBin(c);
   }
 
-  // Hour / Minute hand
   const mainColor = config.clockColor || '#ffffff';
   const accent = config.accentColor || '#38bdf8';
 
   if (style === 'sword') {
     ctx.beginPath();
     ctx.moveTo(cx, dims.tipY);
-    ctx.lineTo(cx + dims.bodyW, dims.h * 0.72);
+    ctx.lineTo(cx + dims.bodyW, dims.h * 0.78);
     ctx.lineTo(cx, dims.tailY);
-    ctx.lineTo(cx - dims.bodyW, dims.h * 0.72);
+    ctx.lineTo(cx - dims.bodyW, dims.h * 0.78);
     ctx.closePath();
     ctx.fillStyle = mainColor;
     ctx.fill();
 
-    // Center lume stripe
     ctx.strokeStyle = accent;
-    ctx.lineWidth = Math.max(2, dims.bodyW * 0.32);
+    ctx.lineWidth = 2;
     ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(cx, dims.tipY + 18);
-    ctx.lineTo(cx, dims.h * 0.68);
+    ctx.moveTo(cx, dims.tipY + 14);
+    ctx.lineTo(cx, dims.h * 0.74);
     ctx.stroke();
   } else {
-    const strokeW = style === 'minimal' ? Math.max(4, dims.bodyW - 3) : dims.bodyW + 1;
+    const strokeW = style === 'minimal' ? 4 : dims.bodyW * 1.7;
     if (style === 'neon') {
       ctx.shadowColor = accent;
-      ctx.shadowBlur = 6;
+      ctx.shadowBlur = 4;
     }
     ctx.strokeStyle = mainColor;
     ctx.lineWidth = strokeW;
@@ -286,24 +295,28 @@ export async function uploadWatchFaceBgToHk5(
     throw new Error(`La imagen debe ser ${WATCH_SIZE}x${WATCH_SIZE}`);
   }
 
-  const manifest = engine === 'analog_181' ? WF_CLOCK181_MANIFEST : WF_CLOCK33_MANIFEST;
+  const is181 = engine === 'analog_181' || engine === 'digital_181';
+  const manifest = is181 ? WF_CLOCK181_MANIFEST : WF_CLOCK33_MANIFEST;
 
   onProgress({
     stage:
       engine === 'analog_181'
-        ? 'Generando fondo 466×466 + manecillas reales...'
-        : 'Generando fondo 466×466 + dígitos en vivo...',
+        ? 'Generando fondo 466×466 + manecillas centradas...'
+        : engine === 'digital_181'
+          ? 'Generando fondo 466×466 + widgets digitales en vivo...'
+          : 'Generando fondo 466×466 + dígitos en vivo...',
     percent: 2
   });
 
   const customBgBytes = encodeCanvasToLvglRgb565Bin(canvas);
+  const transparent2x2 = createTransparent2x2Bin();
 
   const thumbCanvas = document.createElement('canvas');
-  thumbCanvas.width = 48;
-  thumbCanvas.height = 48;
+  thumbCanvas.width = 28;
+  thumbCanvas.height = 28;
   const tctx = thumbCanvas.getContext('2d');
   if (tctx) {
-    tctx.drawImage(canvas, 0, 0, 48, 48);
+    tctx.drawImage(canvas, 0, 0, 28, 28);
   }
   const customThumbBytes = encodeCanvasToLvglRgb565Bin(thumbCanvas);
 
@@ -319,7 +332,9 @@ export async function uploadWatchFaceBgToHk5(
     } else if (spec.digitValue !== undefined) {
       bytes = renderCustomDigitBin(spec.digitValue, config);
     } else if (spec.handRole) {
-      bytes = renderCustomHandBin(spec.handRole, config);
+      bytes = engine === 'digital_181' ? transparent2x2 : renderCustomHandBin(spec.handRole, config);
+    } else if (engine === 'digital_181' && spec.remotePath.endsWith('yuan.bin')) {
+      bytes = transparent2x2;
     } else {
       const resp = await fetch(spec.localPath);
       if (!resp.ok) {

@@ -356,7 +356,14 @@ export const DesignerPanel: React.FC<DesignerPanelProps> = ({ config, onChange }
                   className={activeEngine === 'analog_181' ? 'active' : ''}
                   onClick={() => setEngine('analog_181')}
                 >
-                  Analógica Real
+                  Analógica Pro
+                </button>
+                <button
+                  type="button"
+                  className={activeEngine === 'digital_181' ? 'active' : ''}
+                  onClick={() => setEngine('digital_181')}
+                >
+                  Digital Pro
                 </button>
                 <button
                   type="button"

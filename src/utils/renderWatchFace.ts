@@ -98,7 +98,10 @@ export function renderWatchFace(
   if (!backgroundOnly) {
     const engine = config.engine || (config.clockMode === 'analog' ? 'analog_181' : 'digital_33');
     if (engine === 'analog_181') {
+      drawClock181WidgetsOverlay(ctx, now);
       drawAnalogClock(ctx, config, now);
+    } else if (engine === 'digital_181') {
+      drawClock181WidgetsOverlay(ctx, now);
     } else {
       drawDigital33Overlay(ctx, config, now);
     }
@@ -268,6 +271,47 @@ function drawDialMarkings(ctx: CanvasRenderingContext2D, config: WatchFaceConfig
       ctx.fillText(text, CENTER + Math.cos(rad) * r, CENTER + Math.sin(rad) * r);
     });
   }
+
+  ctx.restore();
+}
+
+/**
+ * Exact WYSIWYG overlay of wf_clock181's real live widgets (weather, HR, battery, steps, calories, digital time, date).
+ */
+function drawClock181WidgetsOverlay(ctx: CanvasRenderingContext2D, now: Date) {
+  ctx.save();
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const mon = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+
+  ctx.font = '700 18px "Inter", sans-serif';
+  ctx.fillText('28°C', CENTER + 14, 96);
+
+  ctx.font = '600 15px "Inter", sans-serif';
+  ctx.fillText('07h30m', 150, 154);
+  ctx.fillText('1.2km', 316, 154);
+
+  ctx.fillText('HR', 96, 232);
+  ctx.fillText('076', 84, 266);
+
+  ctx.fillText(now.getHours() >= 12 ? 'PM' : 'AM', 346, 232);
+  ctx.font = '700 20px "JetBrains Mono", monospace';
+  ctx.fillText(`${hh}:${mm}`, 320, 266);
+
+  ctx.font = '600 15px "Inter", sans-serif';
+  ctx.fillText(`${mon}-${day}`, 346, 304);
+
+  ctx.font = '700 17px "Inter", sans-serif';
+  ctx.fillText('85%', CENTER, 326);
+
+  ctx.font = '600 15px "Inter", sans-serif';
+  ctx.fillText('04210', 184, 396);
+  ctx.fillText('0185', 284, 396);
 
   ctx.restore();
 }

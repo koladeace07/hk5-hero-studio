@@ -5,7 +5,7 @@ export type ClockFont = 'Orbitron' | 'Inter' | 'JetBrains Mono' | 'Playfair Disp
 export type ClockPosition = 'center' | 'top' | 'bottom';
 export type DialStyle = 'none' | 'minimal' | 'chrono' | 'neon';
 export type HandStyle = 'classic' | 'sword' | 'neon' | 'minimal';
-export type WatchEngine = 'analog_181' | 'digital_33';
+export type WatchEngine = 'analog_181' | 'digital_181' | 'digital_33';
 
 export interface WatchFaceConfig {
   name: string;
