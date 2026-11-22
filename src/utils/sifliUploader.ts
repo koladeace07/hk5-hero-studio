@@ -5,6 +5,8 @@ import { WATCH_SIZE } from './renderWatchFace';
 export const SIFLI_SERVICE = '00000000-0000-0000-6473-5f696c666973';
 export const SIFLI_CHAR = '00000000-0000-0200-6473-5f696c666973';
 
+export type WatchEngineTemplate = 'analog_181' | 'digital_33';
+
 const BLOCK_SIZE = 4096;
 const DIGIT_W = 36;
 const DIGIT_H = 52;
@@ -12,35 +14,55 @@ const NUS_SERVICE = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
 const NUS_TX_CHAR = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
 
 interface WatchFileSpec {
-  localName: string;
+  localPath: string;
   remotePath: string;
-  isBgSlot?: 1;
+  isBg?: boolean;
   isThumb?: boolean;
-  digitValue?: string; // '0'..'9'
+  digitValue?: string;
+  handRole?: 'hour' | 'minute' | 'second';
 }
 
-// Digit mapping confirmed from wf_clock33_time_num_01..10.bin sizes (02='1' smallest, 09='8' largest)
 const WF_CLOCK33_MANIFEST: WatchFileSpec[] = [
-  { localName: 'wf_clock33_bg1.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_bg1.bin', isBgSlot: 1 },
-  { localName: 'wf_clock33_tn.bin', remotePath: '/ex/installer_wf/wf_clock33_tn.bin', isThumb: true },
-  { localName: 'wf_clock33_res.so', remotePath: '/ex/installer_wf/wf_clock33_res.so' },
-  { localName: 'wf_clock33.so', remotePath: '/ex/installer_wf/wf_clock33.so' },
-  { localName: 'wf_clock33_time_num_01.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_01.bin', digitValue: '0' },
-  { localName: 'wf_clock33_time_num_02.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_02.bin', digitValue: '1' },
-  { localName: 'wf_clock33_time_num_03.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_03.bin', digitValue: '2' },
-  { localName: 'wf_clock33_time_num_04.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_04.bin', digitValue: '3' },
-  { localName: 'wf_clock33_time_num_05.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_05.bin', digitValue: '4' },
-  { localName: 'wf_clock33_time_num_06.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_06.bin', digitValue: '5' },
-  { localName: 'wf_clock33_time_num_07.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_07.bin', digitValue: '6' },
-  { localName: 'wf_clock33_time_num_08.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_08.bin', digitValue: '7' },
-  { localName: 'wf_clock33_time_num_09.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_09.bin', digitValue: '8' },
-  { localName: 'wf_clock33_time_num_10.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_10.bin', digitValue: '9' },
-  { localName: 'wf_clock33.dsc', remotePath: '/ex/installer_wf/wf_clock33.dsc' }
+  { localPath: '/wf_template/wf_clock33_bg1.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_bg1.bin', isBg: true },
+  { localPath: '/wf_template/wf_clock33_tn.bin', remotePath: '/ex/installer_wf/wf_clock33_tn.bin', isThumb: true },
+  { localPath: '/wf_template/wf_clock33_res.so', remotePath: '/ex/installer_wf/wf_clock33_res.so' },
+  { localPath: '/wf_template/wf_clock33.so', remotePath: '/ex/installer_wf/wf_clock33.so' },
+  { localPath: '/wf_template/wf_clock33_time_num_01.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_01.bin', digitValue: '0' },
+  { localPath: '/wf_template/wf_clock33_time_num_02.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_02.bin', digitValue: '1' },
+  { localPath: '/wf_template/wf_clock33_time_num_03.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_03.bin', digitValue: '2' },
+  { localPath: '/wf_template/wf_clock33_time_num_04.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_04.bin', digitValue: '3' },
+  { localPath: '/wf_template/wf_clock33_time_num_05.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_05.bin', digitValue: '4' },
+  { localPath: '/wf_template/wf_clock33_time_num_06.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_06.bin', digitValue: '5' },
+  { localPath: '/wf_template/wf_clock33_time_num_07.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_07.bin', digitValue: '6' },
+  { localPath: '/wf_template/wf_clock33_time_num_08.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_08.bin', digitValue: '7' },
+  { localPath: '/wf_template/wf_clock33_time_num_09.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_09.bin', digitValue: '8' },
+  { localPath: '/wf_template/wf_clock33_time_num_10.bin', remotePath: '/ex/resource/wf_clock33/wf_clock33_time_num_10.bin', digitValue: '9' },
+  { localPath: '/wf_template/wf_clock33.dsc', remotePath: '/ex/installer_wf/wf_clock33.dsc' }
+];
+
+const WF_CLOCK181_MANIFEST: WatchFileSpec[] = [
+  { localPath: '/wf_clock181/wf_clock181_bg.bin', remotePath: '/ex/resource/wf_clock181/wf_clock181_bg.bin', isBg: true },
+  { localPath: '/wf_clock181/wf_clock181_tn.bin', remotePath: '/ex/installer_wf/wf_clock181_tn.bin', isThumb: true },
+  { localPath: '/wf_clock181/wf_clock181_h.bin', remotePath: '/ex/resource/wf_clock181/wf_clock181_h.bin', handRole: 'hour' },
+  { localPath: '/wf_clock181/wf_clock181_m.bin', remotePath: '/ex/resource/wf_clock181/wf_clock181_m.bin', handRole: 'minute' },
+  { localPath: '/wf_clock181/wf_clock181_s.bin', remotePath: '/ex/resource/wf_clock181/wf_clock181_s.bin', handRole: 'second' },
+  { localPath: '/wf_clock181/wf_clock181.so', remotePath: '/ex/installer_wf/wf_clock181.so' },
+  { localPath: '/wf_clock181/wf_clock181_res.so', remotePath: '/ex/installer_wf/wf_clock181_res.so' },
+  { localPath: '/wf_clock181/wf_clock181_yuan.bin', remotePath: '/ex/resource/wf_clock181/wf_clock181_yuan.bin' },
+  { localPath: '/wf_clock181/wf_clock181_sun.bin', remotePath: '/ex/resource/wf_clock181/wf_clock181_sun.bin' },
+  { localPath: '/wf_clock181/wf_clock181_cloudy.bin', remotePath: '/ex/resource/wf_clock181/wf_clock181_cloudy.bin' },
+  { localPath: '/wf_clock181/wf_clock181_partly.bin', remotePath: '/ex/resource/wf_clock181/wf_clock181_partly.bin' },
+  { localPath: '/wf_clock181/wf_clock181_rain.bin', remotePath: '/ex/resource/wf_clock181/wf_clock181_rain.bin' },
+  { localPath: '/wf_clock181/wf_clock181_snow.bin', remotePath: '/ex/resource/wf_clock181/wf_clock181_snow.bin' },
+  { localPath: '/wf_clock181/wf_clock181_fog.bin', remotePath: '/ex/resource/wf_clock181/wf_clock181_fog.bin' },
+  { localPath: '/wf_clock181/wf_clock181_wind.bin', remotePath: '/ex/resource/wf_clock181/wf_clock181_wind.bin' },
+  { localPath: '/wf_clock181/wf_clock181_sand.bin', remotePath: '/ex/resource/wf_clock181/wf_clock181_sand.bin' },
+  { localPath: '/wf_clock181/wf_clock181_not.bin', remotePath: '/ex/resource/wf_clock181/wf_clock181_not.bin' },
+  { localPath: '/wf_clock181/wf_clock181.dsc', remotePath: '/ex/installer_wf/wf_clock181.dsc' }
 ];
 
 /**
  * SiFli SF32 hardware CRC-32/MPEG-2 (poly 0x04C11DB7, init 0xFFFFFFFF, no reflect, no xorout).
- * Every file sent over SiFli BLE OTA must end with this 4-byte little-endian CRC32 footer.
  */
 function appendSifliCrc32(data: Uint8Array): Uint8Array {
   let crc = 0xffffffff;
@@ -61,10 +83,6 @@ function appendSifliCrc32(data: Uint8Array): Uint8Array {
   return out;
 }
 
-/**
- * Encodes an HTMLCanvasElement into an LVGL v7/v8 RGB565 binary image (.bin)
- * with the required 4-byte SiFli CRC-32/MPEG-2 footer.
- */
 export function encodeCanvasToLvglRgb565Bin(canvas: HTMLCanvasElement): Uint8Array {
   const w = canvas.width;
   const h = canvas.height;
@@ -74,7 +92,7 @@ export function encodeCanvasToLvglRgb565Bin(canvas: HTMLCanvasElement): Uint8Arr
   const imgData = ctx.getImageData(0, 0, w, h).data;
   const raw = new Uint8Array(4 + w * h * 2);
 
-  const cf = 4; // LV_IMG_CF_TRUE_COLOR (RGB565)
+  const cf = 4; // LV_IMG_CF_TRUE_COLOR
   const headerVal = (cf & 0x1f) | ((w & 0x7ff) << 10) | ((h & 0x7ff) << 21);
   raw[0] = headerVal & 0xff;
   raw[1] = (headerVal >>> 8) & 0xff;
@@ -94,20 +112,16 @@ export function encodeCanvasToLvglRgb565Bin(canvas: HTMLCanvasElement): Uint8Arr
   return appendSifliCrc32(raw);
 }
 
-/**
- * Encodes a transparent HTMLCanvasElement into LVGL TRUE_COLOR_ALPHA (cf=5: RGB565 + Alpha byte)
- * so the watch's real ticking digits render cleanly over any custom background photo.
- */
 function encodeCanvasToLvglRgb565AlphaBin(canvas: HTMLCanvasElement): Uint8Array {
   const w = canvas.width;
   const h = canvas.height;
   const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('No se pudo leer el canvas de dígito');
+  if (!ctx) throw new Error('No se pudo leer el canvas');
 
   const imgData = ctx.getImageData(0, 0, w, h).data;
   const raw = new Uint8Array(4 + w * h * 3);
 
-  const cf = 5; // LV_IMG_CF_TRUE_COLOR_ALPHA (RGB565 + 8-bit alpha)
+  const cf = 5; // LV_IMG_CF_TRUE_COLOR_ALPHA
   const headerVal = (cf & 0x1f) | ((w & 0x7ff) << 10) | ((h & 0x7ff) << 21);
   raw[0] = headerVal & 0xff;
   raw[1] = (headerVal >>> 8) & 0xff;
@@ -129,10 +143,6 @@ function encodeCanvasToLvglRgb565AlphaBin(canvas: HTMLCanvasElement): Uint8Array
   return appendSifliCrc32(raw);
 }
 
-/**
- * Renders one live watch digit ('0'..'9') at 46x67 with transparent background using
- * the user's chosen clockFont, clockColor, and subtle outline/glow for readability.
- */
 function renderCustomDigitBin(digit: string, config: WatchFaceConfig): Uint8Array {
   const c = document.createElement('canvas');
   c.width = DIGIT_W;
@@ -145,7 +155,6 @@ function renderCustomDigitBin(digit: string, config: WatchFaceConfig): Uint8Arra
   ctx.textBaseline = 'middle';
   ctx.font = `800 44px "${config.clockFont}", sans-serif`;
 
-  // Subtle dark outline so digits stay sharp over bright photos
   ctx.lineJoin = 'round';
   ctx.lineWidth = 3.5;
   ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
@@ -158,6 +167,88 @@ function renderCustomDigitBin(digit: string, config: WatchFaceConfig): Uint8Arra
 
   ctx.fillStyle = config.clockColor || '#ffffff';
   ctx.fillText(digit, DIGIT_W / 2, DIGIT_H / 2 + 2);
+
+  return encodeCanvasToLvglRgb565AlphaBin(c);
+}
+
+/**
+ * Renders a sleek custom analog watch hand (hour, minute, or second) in LVGL TRUE_COLOR_ALPHA (cf=5)
+ * matching wf_clock181's exact vertical heights (187, 233, 316) so the pivot aligns perfectly.
+ */
+function renderCustomHandBin(
+  role: 'hour' | 'minute' | 'second',
+  config: WatchFaceConfig
+): Uint8Array {
+  const dims =
+    role === 'hour'
+      ? { w: 24, h: 187, bodyW: 9, tipY: 10, tailY: 180 }
+      : role === 'minute'
+        ? { w: 20, h: 233, bodyW: 7, tipY: 8, tailY: 224 }
+        : { w: 12, h: 316, bodyW: 3, tipY: 14, tailY: 306 };
+
+  const c = document.createElement('canvas');
+  c.width = dims.w;
+  c.height = dims.h;
+  const ctx = c.getContext('2d');
+  if (!ctx) throw new Error('Error creando manecilla');
+
+  ctx.clearRect(0, 0, dims.w, dims.h);
+  const cx = dims.w / 2;
+  const style = config.handStyle || 'sword';
+
+  if (role === 'second') {
+    ctx.strokeStyle = config.accentColor || '#38bdf8';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(cx, dims.tipY);
+    ctx.lineTo(cx, dims.tailY);
+    ctx.stroke();
+
+    // Small glowing tip
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(cx, dims.tipY + 8, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    return encodeCanvasToLvglRgb565AlphaBin(c);
+  }
+
+  // Hour / Minute hand
+  const mainColor = config.clockColor || '#ffffff';
+  const accent = config.accentColor || '#38bdf8';
+
+  if (style === 'sword') {
+    ctx.beginPath();
+    ctx.moveTo(cx, dims.tipY);
+    ctx.lineTo(cx + dims.bodyW, dims.h * 0.72);
+    ctx.lineTo(cx, dims.tailY);
+    ctx.lineTo(cx - dims.bodyW, dims.h * 0.72);
+    ctx.closePath();
+    ctx.fillStyle = mainColor;
+    ctx.fill();
+
+    // Center lume stripe
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = Math.max(2, dims.bodyW * 0.32);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(cx, dims.tipY + 18);
+    ctx.lineTo(cx, dims.h * 0.68);
+    ctx.stroke();
+  } else {
+    const strokeW = style === 'minimal' ? Math.max(4, dims.bodyW - 3) : dims.bodyW + 1;
+    if (style === 'neon') {
+      ctx.shadowColor = accent;
+      ctx.shadowBlur = 6;
+    }
+    ctx.strokeStyle = mainColor;
+    ctx.lineWidth = strokeW;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(cx, dims.tipY + 4);
+    ctx.lineTo(cx, dims.tailY - 4);
+    ctx.stroke();
+  }
 
   return encodeCanvasToLvglRgb565AlphaBin(c);
 }
@@ -180,21 +271,31 @@ export interface UploadProgress {
 }
 
 /**
- * Installs a complete, zero-flicker custom watchface onto the HK5 HERO over SiFli BLE:
- * - Clean 466x466 custom background (no frozen hands)
- * - Custom 144x144 selector thumbnail
- * - All 10 live ticking digits ('0'..'9') rendered in the user's chosen font & color!
+ * Installs a complete, zero-flicker custom watchface onto the HK5 HERO over SiFli BLE.
+ * Supports both:
+ *  - 'analog_181': Real moving custom analog hands + weather + custom 466x466 background
+ *  - 'digital_33': Real live custom digital clock digits + date + steps + custom 466x466 background
  */
 export async function uploadWatchFaceBgToHk5(
   canvas: HTMLCanvasElement,
   config: WatchFaceConfig,
+  engine: WatchEngineTemplate,
   onProgress: (p: UploadProgress) => void
 ): Promise<string> {
   if (canvas.width !== WATCH_SIZE || canvas.height !== WATCH_SIZE) {
     throw new Error(`La imagen debe ser ${WATCH_SIZE}x${WATCH_SIZE}`);
   }
 
-  onProgress({ stage: 'Generando fondo, miniatura y dígitos en vivo...', percent: 2 });
+  const manifest = engine === 'analog_181' ? WF_CLOCK181_MANIFEST : WF_CLOCK33_MANIFEST;
+
+  onProgress({
+    stage:
+      engine === 'analog_181'
+        ? 'Generando fondo 466×466 + manecillas reales...'
+        : 'Generando fondo 466×466 + dígitos en vivo...',
+    percent: 2
+  });
+
   const customBgBytes = encodeCanvasToLvglRgb565Bin(canvas);
 
   const thumbCanvas = document.createElement('canvas');
@@ -209,18 +310,20 @@ export async function uploadWatchFaceBgToHk5(
   const packageFiles: Array<{ remotePath: string; bytes: Uint8Array }> = [];
   let totalBytes = 0;
 
-  for (const spec of WF_CLOCK33_MANIFEST) {
+  for (const spec of manifest) {
     let bytes: Uint8Array;
-    if (spec.isBgSlot) {
+    if (spec.isBg) {
       bytes = customBgBytes;
     } else if (spec.isThumb) {
       bytes = customThumbBytes;
     } else if (spec.digitValue !== undefined) {
       bytes = renderCustomDigitBin(spec.digitValue, config);
+    } else if (spec.handRole) {
+      bytes = renderCustomHandBin(spec.handRole, config);
     } else {
-      const resp = await fetch(`/wf_template/${spec.localName}`);
+      const resp = await fetch(spec.localPath);
       if (!resp.ok) {
-        throw new Error(`Falta plantilla interna: ${spec.localName}`);
+        throw new Error(`Falta plantilla interna: ${spec.localPath}`);
       }
       bytes = new Uint8Array(await resp.arrayBuffer());
     }
@@ -377,7 +480,6 @@ export async function uploadWatchFaceBgToHk5(
 
     let globalSent = 0;
 
-    // 2. Stream all 15 files (clean background + thumbnail + 10 live custom digits + .so/.dsc)
     for (let idx = 0; idx < packageFiles.length; idx++) {
       const { remotePath, bytes } = packageFiles[idx];
       const pathBytes = new TextEncoder().encode(remotePath);
@@ -454,11 +556,13 @@ export async function uploadWatchFaceBgToHk5(
       ]);
       await BleClient.writeWithoutResponse(device.deviceId, NUS_SERVICE, NUS_TX_CHAR, toDataView(timePkt));
     } catch {
-      // Non-critical if UART is busy
+      // Non-critical
     }
 
-    onProgress({ stage: '¡Esfera instalada y hora sincronizada!', percent: 100 });
-    return '¡Listo! Esfera instalada con hora real sincronizada en tu HK5 HERO.';
+    onProgress({ stage: '¡Esfera instalada y en marcha!', percent: 100 });
+    return engine === 'analog_181'
+      ? '¡Esfera Analógica Real instalada con manecillas en movimiento!'
+      : '¡Esfera Digital Foto instalada con dígitos en vivo!';
   } finally {
     try {
       await BleClient.stopNotifications(device.deviceId, SIFLI_SERVICE, SIFLI_CHAR);

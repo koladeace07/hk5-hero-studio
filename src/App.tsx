@@ -8,7 +8,7 @@ import { SavedGallery } from './components/SavedGallery';
 import { BleScanner } from './components/BleScanner';
 import { renderWatchFace, WATCH_SIZE } from './utils/renderWatchFace';
 import { savePngToDevice } from './utils/gallerySaver';
-import { UploadProgress, uploadWatchFaceBgToHk5 } from './utils/sifliUploader';
+import { UploadProgress, uploadWatchFaceBgToHk5, WatchEngineTemplate } from './utils/sifliUploader';
 import { APP_VERSION, checkForAppUpdate, UpdateCheckResult } from './utils/appUpdater';
 
 type MainTab = 'designer' | 'gallery' | 'ble';
@@ -118,7 +118,7 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleSendToWatch = async () => {
+  const handleSendToWatch = async (engine: WatchEngineTemplate) => {
     try {
       setUploadError(null);
       setUploadProgress({ stage: 'Preparando fondo limpio 466×466...', percent: 1 });
@@ -138,8 +138,6 @@ export const App: React.FC = () => {
         });
       }
 
-      // Always send clean background (backgroundOnly: true) so frozen hands/widgets are never baked in;
-      // the watch renders its own real ticking clock using the custom digits we generate!
       renderWatchFace(ctx, config, {
         backgroundOnly: true,
         circularMask: false,
@@ -147,7 +145,9 @@ export const App: React.FC = () => {
         now: new Date()
       });
 
-      const msg = await uploadWatchFaceBgToHk5(offscreen, config, (p) => setUploadProgress(p));
+      const msg = await uploadWatchFaceBgToHk5(offscreen, config, engine, (p) =>
+        setUploadProgress(p)
+      );
       showToast(msg);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error al enviar al HK5 HERO';

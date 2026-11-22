@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Download, Save, Eye, EyeOff, Sparkles, Send } from 'lucide-react';
 import { WatchFaceConfig } from '../types/watchface';
 import { renderWatchFace, WATCH_SIZE } from '../utils/renderWatchFace';
-import { UploadProgress } from '../utils/sifliUploader';
+import { UploadProgress, WatchEngineTemplate } from '../utils/sifliUploader';
 
 interface WatchPreviewProps {
   config: WatchFaceConfig;
@@ -10,7 +10,7 @@ interface WatchPreviewProps {
   onToggleBackgroundOnly: () => void;
   onSave: (thumbnail: string) => void;
   onExportPng: (circular: boolean) => void;
-  onSendToWatch: () => void;
+  onSendToWatch: (engine: WatchEngineTemplate) => void;
   uploadProgress: UploadProgress | null;
   uploadError: string | null;
 }
@@ -29,6 +29,16 @@ export const WatchPreview: React.FC<WatchPreviewProps> = ({
   const imageRef = useRef<HTMLImageElement | null>(null);
   const [imageLoadedKey, setImageLoadedKey] = useState(0);
   const [now, setNow] = useState(() => new Date());
+  const [engine, setEngine] = useState<WatchEngineTemplate>('analog_181');
+
+  // Auto-match engine when user switches between analog and digital in designer
+  useEffect(() => {
+    if (config.clockMode === 'analog') {
+      setEngine('analog_181');
+    } else if (config.clockMode === 'digital') {
+      setEngine('digital_33');
+    }
+  }, [config.clockMode]);
 
   // Tick every second for live preview
   useEffect(() => {
@@ -173,17 +183,28 @@ export const WatchPreview: React.FC<WatchPreviewProps> = ({
       {/* Direct Bluetooth Watchface Uploader for HK5 HERO */}
       <div className="direct-upload-box">
         <div className="direct-upload-row">
+          <select
+            className="slot-select"
+            value={engine}
+            onChange={(e) => setEngine(e.target.value as WatchEngineTemplate)}
+            disabled={Boolean(uploadProgress)}
+            aria-label="Tipo de esfera en el reloj"
+          >
+            <option value="analog_181">Analógica Real</option>
+            <option value="digital_33">Digital Arriba</option>
+          </select>
+
           <button
             type="button"
             className="btn btn-primary"
             disabled={Boolean(uploadProgress)}
-            onClick={onSendToWatch}
+            onClick={() => onSendToWatch(engine)}
           >
             <Send size={16} />
             <span>
               {uploadProgress
-                ? `Enviando... ${uploadProgress.percent}%`
-                : 'Instalar esfera en HK5 HERO'}
+                ? `${uploadProgress.percent}%`
+                : 'Instalar en HK5 HERO'}
             </span>
           </button>
         </div>
