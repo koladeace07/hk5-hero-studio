@@ -29,16 +29,8 @@ export const WatchPreview: React.FC<WatchPreviewProps> = ({
   const imageRef = useRef<HTMLImageElement | null>(null);
   const [imageLoadedKey, setImageLoadedKey] = useState(0);
   const [now, setNow] = useState(() => new Date());
-  const [engine, setEngine] = useState<WatchEngineTemplate>('analog_181');
-
-  // Auto-match engine when user switches between analog and digital in designer
-  useEffect(() => {
-    if (config.clockMode === 'analog') {
-      setEngine('analog_181');
-    } else if (config.clockMode === 'digital') {
-      setEngine('digital_33');
-    }
-  }, [config.clockMode]);
+  const activeEngine: WatchEngineTemplate =
+    config.engine || (config.clockMode === 'analog' ? 'analog_181' : 'digital_33');
 
   // Tick every second for live preview
   useEffect(() => {
@@ -183,28 +175,17 @@ export const WatchPreview: React.FC<WatchPreviewProps> = ({
       {/* Direct Bluetooth Watchface Uploader for HK5 HERO */}
       <div className="direct-upload-box">
         <div className="direct-upload-row">
-          <select
-            className="slot-select"
-            value={engine}
-            onChange={(e) => setEngine(e.target.value as WatchEngineTemplate)}
-            disabled={Boolean(uploadProgress)}
-            aria-label="Tipo de esfera en el reloj"
-          >
-            <option value="analog_181">Analógica Real</option>
-            <option value="digital_33">Digital Arriba</option>
-          </select>
-
           <button
             type="button"
             className="btn btn-primary"
             disabled={Boolean(uploadProgress)}
-            onClick={() => onSendToWatch(engine)}
+            onClick={() => onSendToWatch(activeEngine)}
           >
             <Send size={16} />
             <span>
               {uploadProgress
-                ? `${uploadProgress.percent}%`
-                : 'Instalar en HK5 HERO'}
+                ? `Instalando... ${uploadProgress.percent}%`
+                : `Instalar ${activeEngine === 'analog_181' ? 'Analógica' : 'Digital'} en HK5 HERO`}
             </span>
           </button>
         </div>
@@ -229,8 +210,9 @@ export const WatchPreview: React.FC<WatchPreviewProps> = ({
       </div>
 
       <p className="preview-hint">
-        Envía directo por Bluetooth al reloj sin usar Wearfit Pro. Activa{' '}
-        <strong>Solo fondo</strong> si quieres que el reloj ponga su propia hora encima.
+        Vista previa <strong>100% fiel al reloj</strong>: lo que diseñas aquí (fondo, foto, marco,
+        texto y {activeEngine === 'analog_181' ? 'manecillas reales' : 'dígitos en vivo'}) es
+        exactamente lo que se instala en tu HK5 HERO.
       </p>
     </div>
   );

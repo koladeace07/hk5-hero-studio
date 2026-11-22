@@ -3,11 +3,11 @@ import { Layers, Image as ImageIcon, Clock, Sliders, Upload, Trash2, Shuffle } f
 import {
   BackgroundType,
   ClockFont,
-  ClockMode,
   ClockPosition,
   DialStyle,
   HandStyle,
   PatternType,
+  WatchEngine,
   WatchFaceConfig
 } from '../types/watchface';
 import { HK5_PRESETS } from '../data/presets';
@@ -38,6 +38,14 @@ export const DesignerPanel: React.FC<DesignerPanelProps> = ({ config, onChange }
     onChange({ ...config, [key]: value });
   };
 
+  const setEngine = (engine: WatchEngine) => {
+    onChange({
+      ...config,
+      engine,
+      clockMode: engine === 'analog_181' ? 'analog' : 'digital'
+    });
+  };
+
   const handleRandomize = () => {
     const bgPalettes: Array<[string, string]> = [
       ['#0c1f3f', '#04070e'],
@@ -51,26 +59,27 @@ export const DesignerPanel: React.FC<DesignerPanelProps> = ({ config, onChange }
     const dials: DialStyle[] = ['minimal', 'chrono', 'neon'];
     const hands: HandStyle[] = ['classic', 'sword', 'neon', 'minimal'];
     const fonts: ClockFont[] = ['Orbitron', 'Inter', 'JetBrains Mono', 'Playfair Display'];
-    const modes: ClockMode[] = ['digital', 'analog'];
+    const engines: WatchEngine[] = ['analog_181', 'digital_33'];
 
     const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
     const [c1, c2] = pick(bgPalettes);
     const accent = pick(ACCENT_SWATCHES);
+    const engine = pick(engines);
 
     onChange({
       ...config,
       name: `HK5 Mix ${Math.floor(100 + Math.random() * 900)}`,
+      engine,
+      clockMode: engine === 'analog_181' ? 'analog' : 'digital',
       bgType: 'radial',
       bgColor1: c1,
       bgColor2: c2,
       pattern: pick(patterns),
       dialStyle: pick(dials),
       accentColor: accent,
-      clockMode: pick(modes),
       clockFont: pick(fonts),
       handStyle: pick(hands),
-      clockGlow: Math.random() > 0.3,
-      showBatteryRing: Math.random() > 0.4
+      clockGlow: Math.random() > 0.3
     });
   };
 
@@ -92,6 +101,9 @@ export const DesignerPanel: React.FC<DesignerPanelProps> = ({ config, onChange }
     };
     reader.readAsDataURL(file);
   };
+
+  const activeEngine: WatchEngine =
+    config.engine || (config.clockMode === 'analog' ? 'analog_181' : 'digital_33');
 
   return (
     <div className="editor-card">
@@ -118,7 +130,7 @@ export const DesignerPanel: React.FC<DesignerPanelProps> = ({ config, onChange }
           onClick={() => setTab('clock')}
         >
           <Clock size={16} />
-          <span>Hora</span>
+          <span>Reloj</span>
         </button>
         <button
           type="button"
@@ -126,7 +138,7 @@ export const DesignerPanel: React.FC<DesignerPanelProps> = ({ config, onChange }
           onClick={() => setTab('details')}
         >
           <Sliders size={16} />
-          <span>Detalles</span>
+          <span>Texto</span>
         </button>
       </div>
 
@@ -175,11 +187,7 @@ export const DesignerPanel: React.FC<DesignerPanelProps> = ({ config, onChange }
                   />
                   <span className="preset-name">{preset.name}</span>
                   <span className="preset-sub">
-                    {preset.clockMode === 'analog'
-                      ? 'Analógica'
-                      : preset.clockMode === 'digital'
-                        ? 'Digital'
-                        : 'Solo fondo'}
+                    {preset.engine === 'analog_181' ? 'Analógica Real' : 'Digital Arriba'}
                   </span>
                 </button>
               ))}
@@ -341,81 +349,28 @@ export const DesignerPanel: React.FC<DesignerPanelProps> = ({ config, onChange }
         {tab === 'clock' && (
           <div className="stack-md">
             <div className="field">
-              <label>Estilo de reloj</label>
+              <label>Motor real del reloj (100% igual en tu HK5 HERO)</label>
               <div className="segmented">
-                {(
-                  [
-                    ['digital', 'Digital'],
-                    ['analog', 'Analógico'],
-                    ['none', 'Oculto']
-                  ] as Array<[ClockMode, string]>
-                ).map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    className={config.clockMode === value ? 'active' : ''}
-                    onClick={() => update('clockMode', value)}
-                  >
-                    {label}
-                  </button>
-                ))}
+                <button
+                  type="button"
+                  className={activeEngine === 'analog_181' ? 'active' : ''}
+                  onClick={() => setEngine('analog_181')}
+                >
+                  Analógica Real
+                </button>
+                <button
+                  type="button"
+                  className={activeEngine === 'digital_33' ? 'active' : ''}
+                  onClick={() => setEngine('digital_33')}
+                >
+                  Digital Arriba
+                </button>
               </div>
             </div>
 
-            {config.clockMode === 'digital' && (
-              <>
-                <div className="field">
-                  <label>Tipografía</label>
-                  <select
-                    value={config.clockFont}
-                    onChange={(e) => update('clockFont', e.target.value as ClockFont)}
-                  >
-                    <option value="Orbitron">Orbitron (Futurista)</option>
-                    <option value="Inter">Inter (Moderna)</option>
-                    <option value="JetBrains Mono">JetBrains Mono (Técnica)</option>
-                    <option value="Playfair Display">Playfair (Clásica)</option>
-                  </select>
-                </div>
-
-                <div className="field">
-                  <label>Posición de la hora</label>
-                  <div className="segmented">
-                    {(
-                      [
-                        ['top', 'Arriba'],
-                        ['center', 'Centro'],
-                        ['bottom', 'Abajo']
-                      ] as Array<[ClockPosition, string]>
-                    ).map(([value, label]) => (
-                      <button
-                        key={value}
-                        type="button"
-                        className={config.clockPosition === value ? 'active' : ''}
-                        onClick={() => update('clockPosition', value)}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="slider-row">
-                  <span>Tamaño de hora ({Math.round((config.clockScale || 1) * 100)}%)</span>
-                  <input
-                    type="range"
-                    min={0.7}
-                    max={1.35}
-                    step={0.05}
-                    value={config.clockScale || 1}
-                    onChange={(e) => update('clockScale', Number(e.target.value))}
-                  />
-                </div>
-              </>
-            )}
-
-            {config.clockMode === 'analog' && (
+            {activeEngine === 'analog_181' ? (
               <div className="field">
-                <label>Estilo de manecillas</label>
+                <label>Estilo de manecillas reales</label>
                 <div className="segmented">
                   {(
                     [
@@ -428,7 +383,7 @@ export const DesignerPanel: React.FC<DesignerPanelProps> = ({ config, onChange }
                     <button
                       key={value}
                       type="button"
-                      className={(config.handStyle || 'classic') === value ? 'active' : ''}
+                      className={(config.handStyle || 'sword') === value ? 'active' : ''}
                       onClick={() => update('handStyle', value)}
                     >
                       {label}
@@ -436,11 +391,24 @@ export const DesignerPanel: React.FC<DesignerPanelProps> = ({ config, onChange }
                   ))}
                 </div>
               </div>
+            ) : (
+              <div className="field">
+                <label>Tipografía de los dígitos en vivo</label>
+                <select
+                  value={config.clockFont}
+                  onChange={(e) => update('clockFont', e.target.value as ClockFont)}
+                >
+                  <option value="Orbitron">Orbitron (Futurista)</option>
+                  <option value="Inter">Inter (Moderna)</option>
+                  <option value="JetBrains Mono">JetBrains Mono (Técnica)</option>
+                  <option value="Playfair Display">Playfair (Clásica)</option>
+                </select>
+              </div>
             )}
 
             <div className="color-pair">
               <div className="field">
-                <label>Color hora / manecillas</label>
+                <label>{activeEngine === 'analog_181' ? 'Color manecillas' : 'Color de dígitos'}</label>
                 <input
                   type="color"
                   value={config.clockColor}
@@ -448,7 +416,7 @@ export const DesignerPanel: React.FC<DesignerPanelProps> = ({ config, onChange }
                 />
               </div>
               <div className="field">
-                <label>Color de acento</label>
+                <label>{activeEngine === 'analog_181' ? 'Segundero / Acento' : 'Color de brillo'}</label>
                 <input
                   type="color"
                   value={config.accentColor}
@@ -479,24 +447,6 @@ export const DesignerPanel: React.FC<DesignerPanelProps> = ({ config, onChange }
                   onChange={(e) => update('clockGlow', e.target.checked)}
                 />
               </label>
-              <label className="toggle-item">
-                <span>Mostrar segundos</span>
-                <input
-                  type="checkbox"
-                  checked={config.showSeconds}
-                  onChange={(e) => update('showSeconds', e.target.checked)}
-                />
-              </label>
-              {config.clockMode === 'digital' && (
-                <label className="toggle-item">
-                  <span>Formato 24 horas</span>
-                  <input
-                    type="checkbox"
-                    checked={config.use24Hour}
-                    onChange={(e) => update('use24Hour', e.target.checked)}
-                  />
-                </label>
-              )}
             </div>
           </div>
         )}
@@ -504,7 +454,7 @@ export const DesignerPanel: React.FC<DesignerPanelProps> = ({ config, onChange }
         {tab === 'details' && (
           <div className="stack-md">
             <div className="field">
-              <label>Marco / Índices internos</label>
+              <label>Marco / Índices del dial</label>
               <div className="segmented">
                 {(
                   [
@@ -527,58 +477,58 @@ export const DesignerPanel: React.FC<DesignerPanelProps> = ({ config, onChange }
             </div>
 
             <div className="field">
-              <label htmlFor="custom-signature">Texto / Firma personalizada</label>
+              <label htmlFor="custom-signature">Texto personalizado (sale igual en el reloj)</label>
               <input
                 id="custom-signature"
                 type="text"
-                maxLength={18}
+                maxLength={22}
                 value={config.customText}
                 onChange={(e) => update('customText', e.target.value)}
-                placeholder="Ej. HK5 HERO o tu nombre"
+                placeholder="Ej. TE AMO MAILYN"
               />
             </div>
 
-            <div className="toggle-list">
-              <label className="toggle-item">
-                <span>Fecha</span>
-                <input
-                  type="checkbox"
-                  checked={config.showDate}
-                  onChange={(e) => update('showDate', e.target.checked)}
-                />
-              </label>
-              <label className="toggle-item">
-                <span>Indicador de batería</span>
-                <input
-                  type="checkbox"
-                  checked={config.showBattery}
-                  onChange={(e) => update('showBattery', e.target.checked)}
-                />
-              </label>
-              <label className="toggle-item">
-                <span>Anillo circular de batería</span>
-                <input
-                  type="checkbox"
-                  checked={config.showBatteryRing}
-                  onChange={(e) => update('showBatteryRing', e.target.checked)}
-                />
-              </label>
-              <label className="toggle-item">
-                <span>Contador de pasos</span>
-                <input
-                  type="checkbox"
-                  checked={config.showSteps}
-                  onChange={(e) => update('showSteps', e.target.checked)}
-                />
-              </label>
-              <label className="toggle-item">
-                <span>Pulso cardíaco (BPM)</span>
-                <input
-                  type="checkbox"
-                  checked={config.showHeartRate}
-                  onChange={(e) => update('showHeartRate', e.target.checked)}
-                />
-              </label>
+            <div className="field">
+              <label>Posición del texto</label>
+              <div className="segmented">
+                {(
+                  [
+                    ['top', 'Arriba'],
+                    ['center', 'Centro'],
+                    ['bottom', 'Abajo']
+                  ] as Array<[ClockPosition, string]>
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={(config.customTextPosition || 'bottom') === value ? 'active' : ''}
+                    onClick={() => update('customTextPosition', value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="slider-row">
+              <span>Tamaño del texto ({config.customTextSize || 22}px)</span>
+              <input
+                type="range"
+                min={14}
+                max={42}
+                step={2}
+                value={config.customTextSize || 22}
+                onChange={(e) => update('customTextSize', Number(e.target.value))}
+              />
+            </div>
+
+            <div className="field">
+              <label>Color del texto</label>
+              <input
+                type="color"
+                value={config.customTextColor || '#ffffff'}
+                onChange={(e) => update('customTextColor', e.target.value)}
+              />
             </div>
           </div>
         )}

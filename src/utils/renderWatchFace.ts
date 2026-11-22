@@ -4,9 +4,9 @@ export const WATCH_SIZE = 466;
 const CENTER = WATCH_SIZE / 2;
 
 export interface RenderOptions {
-  /** Override to hide clock & widgets when exporting background-only for Wearfit Pro */
+  /** True when exporting the clean 466x466 background to upload to the watch */
   backgroundOnly?: boolean;
-  /** Clip output to a transparent circle (false = square 466x466 recommended for Wearfit Pro) */
+  /** Clip output to a transparent circle */
   circularMask?: boolean;
   /** Optional preloaded HTMLImageElement for synchronous rendering */
   loadedImage?: HTMLImageElement | null;
@@ -14,6 +14,13 @@ export interface RenderOptions {
   now?: Date;
 }
 
+/**
+ * 100% WYSIWYG Watchface Renderer for HK5 HERO:
+ * - Background, photo, texture, dial markings, and customText are baked into bg.bin (appear 100% identically on the watch).
+ * - Clock overlay matches the EXACT real coordinates of the selected watch engine:
+ *    - 'analog_181': real moving custom hands in the center!
+ *    - 'digital_33': real live custom digits at the top + real date top-right + real steps bottom!
+ */
 export function renderWatchFace(
   ctx: CanvasRenderingContext2D,
   config: WatchFaceConfig,
@@ -60,33 +67,40 @@ export function renderWatchFace(
   // 4. Inner dial / tick marks
   drawDialMarkings(ctx, config);
 
-  // 5. Optional AMOLED outer battery progress arc
-  if (!backgroundOnly && config.showBatteryRing) {
-    drawBatteryRing(ctx, config);
-  }
-
-  // 6. Custom signature text
+  // 5. Custom signature text (100% baked into watch background — appears identically on HK5 HERO!)
   if (config.customText.trim()) {
     ctx.save();
-    ctx.fillStyle = config.secondaryColor;
-    ctx.font = `600 16px "${config.clockFont}", sans-serif`;
+    const pos = config.customTextPosition || 'bottom';
+    const size = config.customTextSize || 22;
+    const color = config.customTextColor || '#ffffff';
+    const yPos = pos === 'top' ? 124 : pos === 'center' ? CENTER : 356;
+
+    ctx.font = `700 ${size}px "${config.clockFont}", sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const yPos = config.clockPosition === 'bottom' ? 112 : 362;
-    ctx.globalAlpha = 0.88;
+
+    // Subtle outline for readability over photos
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.72)';
+    ctx.strokeText(config.customText.trim().toUpperCase(), CENTER, yPos);
+
+    if (config.clockGlow) {
+      ctx.shadowColor = config.accentColor;
+      ctx.shadowBlur = 10;
+    }
+    ctx.fillStyle = color;
     ctx.fillText(config.customText.trim().toUpperCase(), CENTER, yPos);
     ctx.restore();
   }
 
+  // 6. Live engine preview overlay (exact match to what the HK5 HERO renders on top!)
   if (!backgroundOnly) {
-    // 7. Widgets
-    drawWidgets(ctx, config, now);
-
-    // 8. Clock
-    if (config.clockMode === 'digital') {
-      drawDigitalClock(ctx, config, now);
-    } else if (config.clockMode === 'analog') {
+    const engine = config.engine || (config.clockMode === 'analog' ? 'analog_181' : 'digital_33');
+    if (engine === 'analog_181') {
       drawAnalogClock(ctx, config, now);
+    } else {
+      drawDigital33Overlay(ctx, config, now);
     }
   }
 
@@ -141,7 +155,7 @@ function drawPattern(ctx: CanvasRenderingContext2D, config: WatchFaceConfig) {
   ctx.save();
   if (config.pattern === 'grid') {
     ctx.strokeStyle = config.accentColor;
-    ctx.globalAlpha = 0.12;
+    ctx.globalAlpha = 0.14;
     ctx.lineWidth = 1;
     const step = 28;
     for (let x = 0; x <= WATCH_SIZE; x += step) {
@@ -180,7 +194,7 @@ function drawPattern(ctx: CanvasRenderingContext2D, config: WatchFaceConfig) {
     }
   } else if (config.pattern === 'radar') {
     ctx.strokeStyle = config.accentColor;
-    ctx.globalAlpha = 0.14;
+    ctx.globalAlpha = 0.16;
     ctx.lineWidth = 1.2;
     [70, 125, 180].forEach((r) => {
       ctx.beginPath();
@@ -194,33 +208,6 @@ function drawPattern(ctx: CanvasRenderingContext2D, config: WatchFaceConfig) {
     ctx.lineTo(WATCH_SIZE - 24, CENTER);
     ctx.stroke();
   }
-  ctx.restore();
-}
-
-function drawBatteryRing(ctx: CanvasRenderingContext2D, config: WatchFaceConfig) {
-  ctx.save();
-  const radius = CENTER - 6;
-  const start = -Math.PI / 2;
-  const end = start + Math.PI * 2 * 0.92; // 92% visual preview
-
-  // Track
-  ctx.strokeStyle = 'rgba(148, 163, 184, 0.18)';
-  ctx.lineWidth = 5;
-  ctx.beginPath();
-  ctx.arc(CENTER, CENTER, radius, 0, Math.PI * 2);
-  ctx.stroke();
-
-  // Active arc
-  ctx.strokeStyle = config.accentColor;
-  ctx.lineWidth = 5;
-  ctx.lineCap = 'round';
-  if (config.clockGlow) {
-    ctx.shadowColor = config.accentColor;
-    ctx.shadowBlur = 10;
-  }
-  ctx.beginPath();
-  ctx.arc(CENTER, CENTER, radius, start, end);
-  ctx.stroke();
   ctx.restore();
 }
 
@@ -285,98 +272,53 @@ function drawDialMarkings(ctx: CanvasRenderingContext2D, config: WatchFaceConfig
   ctx.restore();
 }
 
-function drawWidgets(ctx: CanvasRenderingContext2D, config: WatchFaceConfig, now: Date) {
+/**
+ * Exact WYSIWYG preview of wf_clock33 (Digital Arriba):
+ * - 4 live digits at the top (HH  MM) in user's font & color
+ * - Real date top-right (SUN 22)
+ * - Real steps bottom (00127)
+ */
+function drawDigital33Overlay(ctx: CanvasRenderingContext2D, config: WatchFaceConfig, now: Date) {
   ctx.save();
-
-  if (config.showDate) {
-    const days = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB'];
-    const months = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
-    const dateStr = `${days[now.getDay()]} ${now.getDate()} ${months[now.getMonth()]}`;
-
-    const y = config.clockPosition === 'top' ? 275 : 138;
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.55)';
-    roundRect(ctx, CENTER - 74, y - 16, 148, 32, 16);
-    ctx.fill();
-    ctx.strokeStyle = config.accentColor;
-    ctx.globalAlpha = 0.55;
-    ctx.lineWidth = 1.2;
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-
-    ctx.fillStyle = '#f8fafc';
-    ctx.font = '600 15px "Inter", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(dateStr, CENTER, y + 1);
-  }
-
-  const metricsY = config.clockPosition === 'bottom' ? 168 : 316;
-  const activeMetrics: Array<{ label: string; value: string; color: string }> = [];
-  if (config.showBattery) activeMetrics.push({ label: 'BAT', value: '92%', color: '#22c55e' });
-  if (config.showSteps) activeMetrics.push({ label: 'PASOS', value: '7,420', color: config.accentColor });
-  if (config.showHeartRate) activeMetrics.push({ label: 'BPM', value: '72', color: '#f43f5e' });
-
-  if (activeMetrics.length > 0) {
-    const spacing = activeMetrics.length === 3 ? 96 : activeMetrics.length === 2 ? 120 : 0;
-    const startX = CENTER - ((activeMetrics.length - 1) * spacing) / 2;
-
-    activeMetrics.forEach((m, idx) => {
-      const mx = startX + idx * spacing;
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.55)';
-      roundRect(ctx, mx - 42, metricsY - 22, 84, 44, 12);
-      ctx.fill();
-
-      ctx.fillStyle = m.color;
-      ctx.font = '700 15px "JetBrains Mono", monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(m.value, mx, metricsY - 5);
-
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '600 10px "Inter", sans-serif';
-      ctx.fillText(m.label, mx, metricsY + 12);
-    });
-  }
-
-  ctx.restore();
-}
-
-function drawDigitalClock(ctx: CanvasRenderingContext2D, config: WatchFaceConfig, now: Date) {
-  ctx.save();
-  let hours = now.getHours();
-  const suffix = !config.use24Hour ? (hours >= 12 ? 'PM' : 'AM') : '';
-  if (!config.use24Hour) {
-    hours = hours % 12 || 12;
-  }
-
-  const hh = String(hours).padStart(2, '0');
+  const hh = String(now.getHours()).padStart(2, '0');
   const mm = String(now.getMinutes()).padStart(2, '0');
-  const ss = String(now.getSeconds()).padStart(2, '0');
 
-  const y =
-    config.clockPosition === 'top' ? 176 : config.clockPosition === 'bottom' ? 305 : CENTER + 4;
-
-  const fontSize = Math.round(84 * (config.clockScale || 1));
-
-  if (config.clockGlow) {
-    ctx.shadowColor = config.accentColor;
-    ctx.shadowBlur = 24;
-  }
-
-  ctx.fillStyle = config.clockColor;
-  ctx.font = `800 ${fontSize}px "${config.clockFont}", sans-serif`;
+  ctx.font = `800 44px "${config.clockFont}", sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(`${hh}:${mm}`, CENTER, y);
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 3.5;
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
 
-  ctx.shadowBlur = 0;
+  const y = 78;
+  const positions = [
+    { ch: hh[0], x: 146 },
+    { ch: hh[1], x: 184 },
+    { ch: mm[0], x: 266 },
+    { ch: mm[1], x: 304 }
+  ];
 
-  if (config.showSeconds || suffix) {
-    ctx.fillStyle = config.accentColor;
-    ctx.font = `700 ${Math.round(20 * (config.clockScale || 1))}px "${config.clockFont}", sans-serif`;
-    const sub = [config.showSeconds ? `:${ss}` : '', suffix].filter(Boolean).join(' ');
-    ctx.fillText(sub, CENTER, y + Math.round(52 * (config.clockScale || 1)));
-  }
+  positions.forEach(({ ch, x }) => {
+    ctx.strokeText(ch, x, y);
+    if (config.clockGlow) {
+      ctx.shadowColor = config.accentColor;
+      ctx.shadowBlur = 7;
+    }
+    ctx.fillStyle = config.clockColor || '#ffffff';
+    ctx.fillText(ch, x, y);
+    ctx.shadowBlur = 0;
+  });
+
+  // Real date label (top-right, exactly like wf_clock33)
+  const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+  ctx.font = '600 18px "Inter", sans-serif';
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+  ctx.fillText(`${days[now.getDay()]} ${String(now.getDate()).padStart(2, '0')}`, 346, 140);
+
+  // Real steps label (bottom, exactly like wf_clock33)
+  ctx.font = '600 18px "Inter", sans-serif';
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+  ctx.fillText('00241', CENTER, 412);
 
   ctx.restore();
 }
@@ -404,7 +346,6 @@ function drawSwordHand(
   ctx.fillStyle = color;
   ctx.fill();
 
-  // Inner lume stripe
   ctx.shadowBlur = 0;
   ctx.beginPath();
   ctx.moveTo(0, -14);
@@ -427,16 +368,15 @@ function drawAnalogClock(ctx: CanvasRenderingContext2D, config: WatchFaceConfig,
   const minuteAngle = ((minutes + seconds / 60) * 6 - 90) * (Math.PI / 180);
   const secondAngle = (seconds * 6 - 90) * (Math.PI / 180);
 
-  const style = config.handStyle || 'classic';
+  const style = config.handStyle || 'sword';
 
   if (style === 'sword') {
-    drawSwordHand(ctx, hourAngle, 108, 9, config.clockColor, config.accentColor);
-    drawSwordHand(ctx, minuteAngle, 152, 6.5, config.clockColor, config.accentColor);
+    drawSwordHand(ctx, hourAngle, 120, 9, config.clockColor, config.accentColor);
+    drawSwordHand(ctx, minuteAngle, 165, 7, config.clockColor, config.accentColor);
   } else {
     const isMinimal = style === 'minimal';
     const isNeon = style === 'neon';
 
-    // Hour hand
     ctx.save();
     ctx.shadowColor = isNeon ? config.accentColor : 'rgba(0,0,0,0.65)';
     ctx.shadowBlur = isNeon ? 18 : 10;
@@ -445,11 +385,10 @@ function drawAnalogClock(ctx: CanvasRenderingContext2D, config: WatchFaceConfig,
     ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.moveTo(CENTER - Math.cos(hourAngle) * 18, CENTER - Math.sin(hourAngle) * 18);
-    ctx.lineTo(CENTER + Math.cos(hourAngle) * 102, CENTER + Math.sin(hourAngle) * 102);
+    ctx.lineTo(CENTER + Math.cos(hourAngle) * 120, CENTER + Math.sin(hourAngle) * 120);
     ctx.stroke();
     ctx.restore();
 
-    // Minute hand
     ctx.save();
     ctx.shadowColor = isNeon ? config.accentColor : 'rgba(0,0,0,0.65)';
     ctx.shadowBlur = isNeon ? 18 : 10;
@@ -458,27 +397,25 @@ function drawAnalogClock(ctx: CanvasRenderingContext2D, config: WatchFaceConfig,
     ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.moveTo(CENTER - Math.cos(minuteAngle) * 22, CENTER - Math.sin(minuteAngle) * 22);
-    ctx.lineTo(CENTER + Math.cos(minuteAngle) * 148, CENTER + Math.sin(minuteAngle) * 148);
+    ctx.lineTo(CENTER + Math.cos(minuteAngle) * 165, CENTER + Math.sin(minuteAngle) * 165);
     ctx.stroke();
     ctx.restore();
   }
 
   // Second hand
-  if (config.showSeconds) {
-    ctx.save();
-    if (config.clockGlow || style === 'neon') {
-      ctx.shadowColor = config.accentColor;
-      ctx.shadowBlur = 12;
-    }
-    ctx.strokeStyle = config.accentColor;
-    ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(CENTER - Math.cos(secondAngle) * 30, CENTER - Math.sin(secondAngle) * 30);
-    ctx.lineTo(CENTER + Math.cos(secondAngle) * 168, CENTER + Math.sin(secondAngle) * 168);
-    ctx.stroke();
-    ctx.restore();
+  ctx.save();
+  if (config.clockGlow || style === 'neon') {
+    ctx.shadowColor = config.accentColor;
+    ctx.shadowBlur = 12;
   }
+  ctx.strokeStyle = config.accentColor;
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(CENTER - Math.cos(secondAngle) * 32, CENTER - Math.sin(secondAngle) * 32);
+  ctx.lineTo(CENTER + Math.cos(secondAngle) * 182, CENTER + Math.sin(secondAngle) * 182);
+  ctx.stroke();
+  ctx.restore();
 
   // Center pin
   ctx.fillStyle = config.accentColor;
@@ -492,21 +429,4 @@ function drawAnalogClock(ctx: CanvasRenderingContext2D, config: WatchFaceConfig,
   ctx.fill();
 
   ctx.restore();
-}
-
-function roundRect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number
-) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
 }

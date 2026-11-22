@@ -5,9 +5,12 @@ export type ClockFont = 'Orbitron' | 'Inter' | 'JetBrains Mono' | 'Playfair Disp
 export type ClockPosition = 'center' | 'top' | 'bottom';
 export type DialStyle = 'none' | 'minimal' | 'chrono' | 'neon';
 export type HandStyle = 'classic' | 'sword' | 'neon' | 'minimal';
+export type WatchEngine = 'analog_181' | 'digital_33';
 
 export interface WatchFaceConfig {
   name: string;
+  engine: WatchEngine;
+
   // Background
   bgType: BackgroundType;
   bgColor1: string;
@@ -26,7 +29,7 @@ export interface WatchFaceConfig {
   accentColor: string;
   secondaryColor: string;
 
-  // Clock
+  // Clock (matches real live engine: analog_181 hands or digital_33 top digits)
   clockMode: ClockMode;
   clockFont: ClockFont;
   clockColor: string;
@@ -37,13 +40,16 @@ export interface WatchFaceConfig {
   use24Hour: boolean;
   showSeconds: boolean;
 
-  // Widgets & signature
+  // Real transferable details
   showDate: boolean;
   showBattery: boolean;
   showBatteryRing: boolean;
   showSteps: boolean;
   showHeartRate: boolean;
   customText: string;
+  customTextPosition: ClockPosition;
+  customTextSize: number;
+  customTextColor: string;
 }
 
 export interface SavedDesign {
