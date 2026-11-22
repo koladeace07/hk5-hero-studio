@@ -977,6 +977,38 @@ select {
   gap: 4px;
 }
 
+.telemetry-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.telemetry-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.telemetry-card strong {
+  display: block;
+  font-size: 1.05rem;
+}
+
+.telemetry-card span {
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+.app-chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
 /* Mobile bottom nav */
 .mobile-nav {
   position: fixed;

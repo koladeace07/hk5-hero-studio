@@ -5,7 +5,7 @@ import { SavedDesign, WatchFaceConfig } from './types/watchface';
 import { WatchPreview } from './components/WatchPreview';
 import { DesignerPanel } from './components/DesignerPanel';
 import { SavedGallery } from './components/SavedGallery';
-import { BleScanner } from './components/BleScanner';
+import { CompanionHub } from './components/CompanionHub';
 import { renderWatchFace, WATCH_SIZE } from './utils/renderWatchFace';
 import { savePngToDevice } from './utils/gallerySaver';
 import { UploadProgress, uploadWatchFaceBgToHk5, WatchEngineTemplate } from './utils/sifliUploader';
@@ -256,7 +256,7 @@ export const App: React.FC = () => {
           />
         )}
 
-        {activeTab === 'ble' && <BleScanner />}
+        {activeTab === 'ble' && <CompanionHub />}
       </main>
 
       {/* Mobile bottom navigation */}
@@ -283,7 +283,7 @@ export const App: React.FC = () => {
           onClick={() => setActiveTab('ble')}
         >
           <Bluetooth size={20} />
-          <span>BLE</span>
+          <span>Mi Reloj</span>
         </button>
       </nav>
 
